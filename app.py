@@ -13,7 +13,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import numpy as np
 
-from src.config import PRECOMPUTED_DIR, OUTPUT_DIR, CANDIDATES_FILE
+from src.config import PRECOMPUTED_DIR, OUTPUT_DIR, CANDIDATES_FILE, MUST_HAVE_SKILLS, NICE_TO_HAVE_SKILLS, JD_EXPERIENCE_RANGE
 
 st.set_page_config(page_title="RecruitX", page_icon="R", layout="wide", initial_sidebar_state="collapsed")
 
