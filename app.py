@@ -573,7 +573,8 @@ def main():
         </div>
     </div>""", unsafe_allow_html=True)
 
-    csvs = list(OUTPUT_DIR.glob("*.csv"))
+    sub_path = OUTPUT_DIR / "submission.csv"
+    csvs = [sub_path] if sub_path.exists() else list(OUTPUT_DIR.glob("*.csv"))
     if not csvs:
         st.markdown("""<div class="rx-hero">
             <h1>Intelligent Candidate<br>Discovery</h1>
