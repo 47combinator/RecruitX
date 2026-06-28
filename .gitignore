@@ -15,10 +15,10 @@ build/
 data/
 *.pkl
 *.npy
-*.jsonl
+**/candidates.jsonl
 
-# Output
-output/
+# Output (keep CSV, exclude large files)
+output/*.xlsx
 
 # IDE
 .vscode/

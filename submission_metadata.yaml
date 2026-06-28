@@ -1,27 +1,33 @@
 # Redrob Hackathon — Submission Metadata
-# Copy of submission_metadata_template.yaml with our team's details filled in.
+# RecruitX by Team Elements
 
-team_name: "RecruitX"
+team_name: "Elements"
 
 primary_contact:
-  name: "Pratyush"
-  email: "pratyush@example.com"  # UPDATE with your actual email
-  phone: "+91-XXXXXXXXXX"        # UPDATE with your actual phone
+  name: "Pratyush Chaudhari"
+  email: "pratyush369chaudhary@gmail.com"
+  phone: "+919370949163"
 
 team_members:
-  - name: "Pratyush"
-    email: "pratyush@example.com"
-    role: "ML Engineer / Lead"
+  - name: "Pratyush Chaudhari"
+    email: "pratyush369chaudhary@gmail.com"
+    role: "Team Lead / ML Engineer"
+  - name: "Saim Kotkar"
+    email: ""
+    role: "Data Engineer"
+  - name: "Vyankatesh Dawale"
+    email: ""
+    role: "ML Engineer"
 
-github_repo: "https://github.com/YOUR_USERNAME/RecruitX"  # UPDATE
+github_repo: "https://github.com/47combinator/RecruitX"
 
-sandbox_link: "https://huggingface.co/spaces/YOUR_USERNAME/recruitx"  # UPDATE
+sandbox_link: ""  # Will be updated after deployment
 
 reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
 
 compute:
-  platform: "Windows PC"
-  cpu_cores: 8
+  platform: "ASUS TUF FX507VU — Intel i7-13620H"
+  cpu_cores: 16
   ram_gb: 16
   python_version: "3.13"
   os: "Windows 11"
@@ -43,11 +49,11 @@ ai_usage_summary: |
 methodology_summary: |
   Hybrid retrieval + weighted ensemble ranking system. Dense retrieval
   via sentence-transformers (all-MiniLM-L6-v2) combined with BM25 sparse
-  retrieval using Reciprocal Rank Fusion. 40+ features across skill match,
+  retrieval using Reciprocal Rank Fusion. 54 features across skill match,
   career relevance, behavioral signals, education, and location are combined
-  via a weighted ensemble scorer. Seven heuristic checks detect ~80 honeypot
-  candidates with impossible profiles. Penalty multipliers handle consulting-only
-  careers and keyword stuffers. Runtime ~60s for 100K candidates on CPU.
+  via an 8-component weighted ensemble scorer. Seven heuristic checks detect
+  ~80 honeypot candidates with impossible profiles. Penalty multipliers handle
+  consulting-only careers and keyword stuffers. Runtime 25s for 100K on CPU.
 
 declarations:
   read_submission_spec: true

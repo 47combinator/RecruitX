@@ -61,6 +61,11 @@ st.markdown("""
     ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: var(--black); } ::-webkit-scrollbar-thumb { background: var(--g4); }
 
     /* NAV */
+    .rx-nav-left { display: flex; align-items: center; gap: 1.5rem; }
+    .rx-nav-divider { width: 1px; height: 16px; background: var(--g4); }
+    .rx-nav-team { font-family: var(--mono); font-size: 0.75rem; color: var(--white); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; }
+    .rx-nav-hackathon { display: flex; align-items: center; gap: 0.8rem; }
+    .rx-nav-badge { font-family: var(--mono); font-size: 0.72rem; color: var(--white); letter-spacing: 0.06em; text-transform: uppercase; padding: 0.3rem 0.7rem; border: 1px solid var(--g7); font-weight: 500; }
     .rx-nav { display: flex; align-items: center; justify-content: space-between; padding: 1rem 3rem; border-bottom: 1px solid var(--g4); background: var(--black); }
     .rx-nav-brand { font-family: var(--mono); font-size: 0.85rem; font-weight: 700; color: var(--white); letter-spacing: 0.12em; }
     .rx-nav-right { font-family: var(--mono); font-size: 0.6rem; color: var(--g6); letter-spacing: 0.08em; text-transform: uppercase; }
@@ -557,8 +562,15 @@ def render_analytics(results, candidates):
 def main():
     # Nav
     st.markdown("""<div class="rx-nav">
-        <div class="rx-nav-brand">RECRUITX</div>
-        <div class="rx-nav-right">INTELLIGENT CANDIDATE DISCOVERY ENGINE</div>
+        <div class="rx-nav-left">
+            <div class="rx-nav-brand">RECRUITX</div>
+            <div class="rx-nav-divider"></div>
+            <div class="rx-nav-team">by Elements</div>
+        </div>
+        <div class="rx-nav-hackathon">
+            <div class="rx-nav-badge">Redrob India.runs Hackathon</div>
+            <div class="rx-nav-right">INTELLIGENT CANDIDATE DISCOVERY ENGINE</div>
+        </div>
     </div>""", unsafe_allow_html=True)
 
     csvs = list(OUTPUT_DIR.glob("*.csv"))
@@ -571,14 +583,27 @@ def main():
 
     results = load_submission(str(csvs[0]))
     ids = [r["candidate_id"] for r in results]
-    candidates = load_candidates(str(CANDIDATES_FILE), ids) if CANDIDATES_FILE.exists() else {}
+    # Try full dataset first, then fallback to top100 extract for deployed version
+    top100_fallback = OUTPUT_DIR / "top100_candidates.jsonl"
+    if CANDIDATES_FILE.exists():
+        candidates = load_candidates(str(CANDIDATES_FILE), ids)
+    elif top100_fallback.exists():
+        candidates = load_candidates(str(top100_fallback), ids)
+    else:
+        candidates = {}
     features_data = load_features()
 
     # Hero
     st.markdown("""<div class="rx-hero">
+        <div style="font-family: var(--mono); font-size: 0.85rem; color: var(--white); text-transform: uppercase; letter-spacing: 0.16em; margin-bottom: 1.2rem; font-weight: 600;">ELEMENTS / REDROB INDIA.RUNS HACKATHON 2025</div>
         <h1>Intelligent Candidate<br>Discovery</h1>
         <div class="rx-hero-sub">Semantic retrieval and weighted ensemble ranking across 100,000 candidates.
         Hybrid dense-sparse pipeline with explainable scoring.</div>
+        <div style="display: flex; gap: 1.5rem; margin-top: 1.5rem;">
+            <div style="font-family: var(--mono); font-size: 0.78rem; color: var(--white); padding: 0.4rem 0.8rem; border: 1px solid var(--g7); letter-spacing: 0.08em; font-weight: 500;">TEAM ELEMENTS</div>
+            <div style="font-family: var(--mono); font-size: 0.78rem; color: var(--white); padding: 0.4rem 0.8rem; border: 1px solid var(--g7); letter-spacing: 0.08em; font-weight: 500;">MADE FOR REDROB</div>
+            <div style="font-family: var(--mono); font-size: 0.78rem; color: var(--white); padding: 0.4rem 0.8rem; border: 1px solid var(--g7); letter-spacing: 0.08em; font-weight: 500;">INDIA.RUNS 2025</div>
+        </div>
     </div>""", unsafe_allow_html=True)
 
     # Metrics
