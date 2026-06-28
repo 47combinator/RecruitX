@@ -557,6 +557,220 @@ def render_analytics(results, candidates):
 
 
 # =============================================================================
+# Try It — Resume Scorer
+# =============================================================================
+def score_resume_text(text):
+    """Score pasted resume text against the JD using our pipeline logic."""
+    text_lower = text.lower()
+    words = set(re.findall(r'\b[a-z0-9+#.\-]+\b', text_lower))
+
+    # --- Skill matching ---
+    must_matched = {}
+    for canonical, aliases in MUST_HAVE_SKILLS.items():
+        for alias in aliases:
+            if alias.lower() in text_lower:
+                must_matched[canonical] = alias
+                break
+
+    nice_matched = {}
+    for canonical, aliases in NICE_TO_HAVE_SKILLS.items():
+        for alias in aliases:
+            if alias.lower() in text_lower:
+                nice_matched[canonical] = alias
+                break
+
+    must_total = len(MUST_HAVE_SKILLS)
+    nice_total = len(NICE_TO_HAVE_SKILLS)
+    must_score = len(must_matched) / must_total if must_total else 0
+    nice_score = len(nice_matched) / nice_total if nice_total else 0
+    skill_score = must_score * 0.6 + nice_score * 0.4
+
+    # --- Experience extraction ---
+    yoe = 0.0
+    yoe_matches = re.findall(r'(\d+\.?\d*)\s*(?:\+\s*)?(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)?', text_lower)
+    if yoe_matches:
+        yoe = max(float(y) for y in yoe_matches)
+    exp_min, exp_max = JD_EXPERIENCE_RANGE
+    if exp_min <= yoe <= exp_max:
+        exp_score = 1.0
+    elif yoe < exp_min:
+        exp_score = max(0, yoe / exp_min)
+    else:
+        exp_score = max(0, 1.0 - (yoe - exp_max) * 0.1)
+
+    # --- Title relevance ---
+    title_keywords = ["ai engineer", "ml engineer", "machine learning", "data scientist",
+                      "research engineer", "applied scientist", "nlp engineer",
+                      "search engineer", "ranking engineer", "recommendation"]
+    title_score = 0.0
+    for kw in title_keywords:
+        if kw in text_lower:
+            title_score = 1.0
+            break
+
+    negative_titles = ["marketing manager", "hr manager", "graphic designer",
+                       "content writer", "business analyst", "sales", "recruiter"]
+    for nt in negative_titles:
+        if nt in text_lower:
+            title_score *= 0.2
+            break
+
+    # --- Product company signal ---
+    product_companies = ["google", "amazon", "meta", "facebook", "microsoft", "apple",
+                         "netflix", "flipkart", "swiggy", "zomato", "razorpay", "stripe",
+                         "uber", "airbnb", "spotify", "linkedin", "twitter", "openai",
+                         "deepmind", "nvidia", "ola", "meesho", "cred", "phonepe",
+                         "paytm", "byju", "dream11"]
+    consulting = ["tcs", "infosys", "wipro", "accenture", "cognizant", "capgemini",
+                  "hcl technologies", "tech mahindra", "cts"]
+    product_hit = any(c in text_lower for c in product_companies)
+    consult_hit = any(c in text_lower for c in consulting)
+    career_score = 0.8 if product_hit else 0.4
+    if consult_hit and not product_hit:
+        career_score = 0.2
+
+    # --- Composite ---
+    composite = (skill_score * 0.35 + career_score * 0.20 + title_score * 0.15 +
+                 exp_score * 0.15 + min(1.0, len(must_matched) / 5) * 0.15)
+    composite = round(min(1.0, composite), 4)
+
+    return {
+        "composite": composite,
+        "skill_score": round(skill_score, 4),
+        "exp_score": round(exp_score, 4),
+        "title_score": round(title_score, 4),
+        "career_score": round(career_score, 4),
+        "yoe": yoe,
+        "must_matched": must_matched,
+        "must_missed": [k for k in MUST_HAVE_SKILLS if k not in must_matched],
+        "nice_matched": nice_matched,
+        "nice_missed": [k for k in NICE_TO_HAVE_SKILLS if k not in nice_matched],
+    }
+
+
+def render_try_it():
+    """TRY IT tab — paste resume, get scored."""
+    st.markdown('<div class="rx-label">RESUME SCORER</div>', unsafe_allow_html=True)
+    st.markdown("""<div style="font-size: 0.75rem; color: var(--g6); margin-bottom: 1.5rem; line-height: 1.6;">
+        Paste your resume or profile text below. Our scoring engine will analyze it against the
+        <span style="color: var(--white); font-weight: 600;">Senior AI Engineer</span> job description
+        and return a score with detailed feedback.
+    </div>""", unsafe_allow_html=True)
+
+    resume_text = st.text_area(
+        "Paste your resume text here",
+        height=250,
+        placeholder="Paste your full resume or LinkedIn profile text here...",
+        label_visibility="collapsed"
+    )
+
+    if st.button("SCORE MY RESUME", type="primary"):
+        if not resume_text or len(resume_text.strip()) < 50:
+            st.markdown('<div style="color:#ff4444; font-family:var(--mono); font-size:0.78rem; margin-top:1rem;">Paste at least 50 characters of resume text.</div>', unsafe_allow_html=True)
+            return
+
+        result = score_resume_text(resume_text)
+        score = result["composite"]
+
+        # Score tier
+        if score >= 0.75:
+            tier, tier_color = "STRONG FIT", "#00c853"
+        elif score >= 0.50:
+            tier, tier_color = "MODERATE FIT", "#ffd600"
+        elif score >= 0.30:
+            tier, tier_color = "WEAK FIT", "#ff6d00"
+        else:
+            tier, tier_color = "LOW FIT", "#ff1744"
+
+        # Big score display
+        st.markdown(f"""
+        <div style="margin: 2rem 0; padding: 2rem; border: 1px solid var(--g4);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <div style="font-family: var(--mono); font-size: 3rem; font-weight: 700; color: var(--white);">{score:.4f}</div>
+                    <div style="font-family: var(--mono); font-size: 0.85rem; color: {tier_color}; letter-spacing: 0.1em; margin-top: 0.3rem;">{tier}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-family: var(--mono); font-size: 0.65rem; color: var(--g6); letter-spacing: 0.08em;">SCORED AGAINST</div>
+                    <div style="font-family: var(--mono); font-size: 0.78rem; color: var(--white); margin-top: 0.2rem;">Senior AI Engineer — Redrob</div>
+                    <div style="font-family: var(--mono); font-size: 0.65rem; color: var(--g5); margin-top: 0.2rem;">Experience detected: {result['yoe']:.1f} yrs</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Component breakdown
+        components = [
+            ("SKILL MATCH", result["skill_score"], "35%"),
+            ("CAREER RELEVANCE", result["career_score"], "20%"),
+            ("TITLE FIT", result["title_score"], "15%"),
+            ("EXPERIENCE FIT", result["exp_score"], "15%"),
+        ]
+        st.markdown('<div class="rx-label" style="margin-top:1.5rem;">SCORE BREAKDOWN</div>', unsafe_allow_html=True)
+        for name, val, weight in components:
+            bar_w = max(1, val * 100)
+            st.markdown(f"""
+            <div class="rx-sb-row">
+                <div class="rx-sb-name">{name}</div>
+                <div class="rx-sb-bar-wrap"><div class="rx-sb-bar-fill" style="width:{bar_w:.1f}%"></div></div>
+                <div class="rx-sb-val">{val:.2f}</div>
+                <div class="rx-sb-weight">{weight}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Skills found
+        st.markdown('<div class="rx-label" style="margin-top:2rem;">MUST-HAVE SKILLS</div>', unsafe_allow_html=True)
+        must_html = ""
+        for sk in MUST_HAVE_SKILLS:
+            if sk in result["must_matched"]:
+                must_html += f'<span style="font-family:var(--mono);font-size:0.72rem;padding:0.3rem 0.6rem;border:1px solid #00c853;color:#00c853;margin:0.2rem 0.3rem 0.2rem 0;display:inline-block;">{sk}</span>'
+            else:
+                must_html += f'<span style="font-family:var(--mono);font-size:0.72rem;padding:0.3rem 0.6rem;border:1px solid var(--g4);color:var(--g5);margin:0.2rem 0.3rem 0.2rem 0;display:inline-block;">{sk}</span>'
+        st.markdown(f'<div style="margin:0.5rem 0 1rem 0;">{must_html}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-family:var(--mono);font-size:0.65rem;color:var(--g6);">{len(result["must_matched"])}/{len(MUST_HAVE_SKILLS)} matched</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="rx-label" style="margin-top:1.5rem;">NICE-TO-HAVE SKILLS</div>', unsafe_allow_html=True)
+        nice_html = ""
+        for sk in NICE_TO_HAVE_SKILLS:
+            if sk in result["nice_matched"]:
+                nice_html += f'<span style="font-family:var(--mono);font-size:0.72rem;padding:0.3rem 0.6rem;border:1px solid #00c853;color:#00c853;margin:0.2rem 0.3rem 0.2rem 0;display:inline-block;">{sk}</span>'
+            else:
+                nice_html += f'<span style="font-family:var(--mono);font-size:0.72rem;padding:0.3rem 0.6rem;border:1px solid var(--g4);color:var(--g5);margin:0.2rem 0.3rem 0.2rem 0;display:inline-block;">{sk}</span>'
+        st.markdown(f'<div style="margin:0.5rem 0 1rem 0;">{nice_html}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-family:var(--mono);font-size:0.65rem;color:var(--g6);">{len(result["nice_matched"])}/{len(NICE_TO_HAVE_SKILLS)} matched</div>', unsafe_allow_html=True)
+
+        # Insights
+        insights = []
+        if result["skill_score"] >= 0.6:
+            insights.append("Strong skill alignment with the JD requirements.")
+        elif result["skill_score"] >= 0.3:
+            insights.append("Partial skill overlap. Key gaps in: " + ", ".join(result["must_missed"][:4]) + ".")
+        else:
+            insights.append("Low skill overlap. Missing most must-have skills for this role.")
+
+        if result["exp_score"] >= 0.8:
+            insights.append(f"Experience ({result['yoe']:.0f} yrs) is in the ideal 5-9 year band.")
+        elif result["yoe"] < 5:
+            insights.append(f"Experience ({result['yoe']:.0f} yrs) is below the 5-year minimum preference.")
+        else:
+            insights.append(f"Experience ({result['yoe']:.0f} yrs) exceeds the 9-year target — overqualification risk.")
+
+        if result["career_score"] >= 0.8:
+            insights.append("Product company experience detected — strong signal for this role.")
+        elif result["career_score"] <= 0.3:
+            insights.append("Consulting-only background detected. The JD explicitly flags this as poor fit.")
+
+        if result["title_score"] >= 0.8:
+            insights.append("Title/role aligns well with Senior AI Engineer expectations.")
+        elif result["title_score"] <= 0.2:
+            insights.append("No AI/ML-related title detected. Title mismatch is a negative signal.")
+
+        st.markdown('<div class="rx-label" style="margin-top:2rem;">INSIGHTS</div>', unsafe_allow_html=True)
+        for insight in insights:
+            st.markdown(f'<div style="font-family:var(--mono);font-size:0.75rem;color:var(--g7);padding:0.5rem 0;border-bottom:1px solid var(--g3);line-height:1.6;">{insight}</div>', unsafe_allow_html=True)
+
+
+# =============================================================================
 # Main
 # =============================================================================
 def main():
@@ -619,8 +833,8 @@ def main():
     </div>""", unsafe_allow_html=True)
 
     # Main tabs
-    tab_rank, tab_pipeline, tab_candidate, tab_analytics = st.tabs([
-        "RANKINGS", "PIPELINE", "CANDIDATE PROFILE", "ANALYTICS"
+    tab_rank, tab_pipeline, tab_candidate, tab_analytics, tab_tryit = st.tabs([
+        "RANKINGS", "PIPELINE", "CANDIDATE PROFILE", "ANALYTICS", "TRY IT"
     ])
 
     with tab_rank:
@@ -661,6 +875,11 @@ def main():
     with tab_analytics:
         st.markdown('<div class="rx-pad">', unsafe_allow_html=True)
         render_analytics(results, candidates)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with tab_tryit:
+        st.markdown('<div class="rx-pad">', unsafe_allow_html=True)
+        render_try_it()
         st.markdown('</div>', unsafe_allow_html=True)
 
 
